@@ -1,0 +1,20 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.log
+
+## Logs
+src/API/logs/
+
+## appsettings locales (no subir credenciales)
+appsettings.Development.json
+
+## Publicacion
+publish/
+out/
+
+## Claude Code
+.claude/
