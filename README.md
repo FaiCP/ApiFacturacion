@@ -1,3 +1,30 @@
+<!-- AUTOREADME:START -->
+<p align="center">
+  <h1>📦 GestorAdmi.Core</h1>
+</p>
+
+<p align="center">
+  <a href="https://github.com/FaiCP/ApiGetionCNE/stargazers"><img src="https://img.shields.io/github/stars/FaiCP/ApiGetionCNE?style=flat&color=yellow" alt="Stars" /></a>
+  <a href="https://github.com/FaiCP/ApiGetionCNE/commits"><img src="https://img.shields.io/github/last-commit/FaiCP/ApiGetionCNE?style=flat" alt="Last Commit" /></a>
+</p>
+
+## Project Structure
+
+```
+├─ publish/
+├─ src/
+├─ tests/
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a branch: `git checkout -b feature/your-feature`
+3. Commit your changes
+4. Push to the branch: `git push origin feature/your-feature`
+5. Open a pull request against `main`
+<!-- AUTOREADME:END -->
+
 # 🚀 GestorAdmi Core API
 
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512bd4.svg)
