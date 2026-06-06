@@ -1,5 +1,5 @@
 using System.Net;
-using System.Text.Json;
+using API.Models;
 using Domain.Exceptions;
 
 namespace API.Middleware;
@@ -31,59 +31,44 @@ public class GlobalExceptionHandlerMiddleware
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
-
-        var response = new ErrorResponse
-        {
-            Message = exception.Message,
-            StackTrace = context.RequestServices.GetRequiredService<IWebHostEnvironment>().EnvironmentName == "Development"
-                ? exception.StackTrace
-                : null
-        };
+        var environment = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
+        var includeDetails = environment.IsDevelopment();
 
         switch (exception)
         {
             case Domain.Exceptions.ValidationException validationEx:
-                context.Response.StatusCode = (int)HttpStatusCode.UnprocessableEntity;
-                response.StatusCode = HttpStatusCode.UnprocessableEntity;
-                response.Errors = validationEx.Errors;
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                await context.Response.WriteAsJsonAsync(
+                    ApiResponse<object>.Fail(
+                        "La validación de la solicitud falló.",
+                        validationEx.Errors.SelectMany(e => e.Value)));
                 break;
             case NotFoundException:
             case KeyNotFoundException:
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                response.StatusCode = HttpStatusCode.NotFound;
+                await context.Response.WriteAsJsonAsync(ApiResponse<object>.Fail("Recurso no encontrado."));
                 break;
             case UnauthorizedAccessException:
                 context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
-                response.StatusCode = HttpStatusCode.Unauthorized;
+                await context.Response.WriteAsJsonAsync(ApiResponse<object>.Fail("No autorizado."));
                 break;
             case DomainException:
             case ArgumentException:
             case InvalidOperationException:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                response.StatusCode = HttpStatusCode.BadRequest;
+                await context.Response.WriteAsJsonAsync(ApiResponse<object>.Fail(exception.Message));
                 break;
             default:
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                response.StatusCode = HttpStatusCode.InternalServerError;
-                response.Message = "Ha ocurrido un error interno del servidor.";
+                await context.Response.WriteAsJsonAsync(
+                    ApiResponse<object>.Fail(
+                        "Ha ocurrido un error interno del servidor.",
+                        includeDetails && !string.IsNullOrWhiteSpace(exception.StackTrace)
+                            ? new[] { exception.Message, exception.StackTrace }
+                            : new[] { "Ha ocurrido un error interno del servidor." }));
                 break;
         }
-
-        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
-
-        await context.Response.WriteAsync(json);
     }
-}
-
-public class ErrorResponse
-{
-    public HttpStatusCode StatusCode { get; set; }
-    public string Message { get; set; } = string.Empty;
-    public string? StackTrace { get; set; }
-    public IReadOnlyDictionary<string, string[]>? Errors { get; set; }
 }
 
 // Extension method para facilitar el registro

@@ -5,6 +5,7 @@ using GestorAdmi.Tests.Integration.Infrastructure;
 
 namespace GestorAdmi.Tests.Integration.Tests;
 
+[Collection("IntegrationTests")]
 public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;
@@ -21,7 +22,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         var payload = new { Email = "admin@test.com", Password = "password123" };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/login", payload);
+        var response = await _client.PostAsJsonAsync("/api/v1/login", payload);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -39,7 +40,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         var payload = new { Email = "admin@test.com", Password = "wrongpassword" };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/login", payload);
+        var response = await _client.PostAsJsonAsync("/api/v1/login", payload);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -48,9 +49,9 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task Login_UnknownEmail_Returns401()
     {
-        var payload = new { Email = "noexiste@test.com", Password = "any" };
+        var payload = new { Email = "noexiste@test.com", Password = "wrongpassword" };
 
-        var response = await _client.PostAsJsonAsync("/login", payload);
+        var response = await _client.PostAsJsonAsync("/api/v1/login", payload);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }

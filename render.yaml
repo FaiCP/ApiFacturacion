@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: facturacion-ec-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /swagger
+    plan: free
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        sync: false          # se ingresa manualmente en el dashboard
+      - key: Jwt__Key
+        sync: false          # se ingresa manualmente en el dashboard
+      - key: Jwt__Issuer
+        value: FacturacionAPI
+      - key: Jwt__Audience
+        value: FacturacionAPIClient
+      - key: Jwt__ExpirationHours
+        value: 8
+      - key: Cors__AllowedOrigins__0
+        value: https://tu-frontend.vercel.app  # cambia por tu URL real

@@ -7,9 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers;
 
-/// <summary>Reportes estadísticos del inventario</summary>
+/// <summary>Reportes de facturación electrónica</summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/reportes")]
 [Authorize]
 public class ReportesController : ControllerBase
 {
@@ -20,39 +20,47 @@ public class ReportesController : ControllerBase
         _mediator = mediator;
     }
 
-    /// <summary>Obtiene el conteo total de inventario agrupado por tipo de dispositivo</summary>
-    /// <returns>Lista con nombre del dispositivo y cantidad total</returns>
-    [HttpGet("InventarioTotal")]
-    [ProducesResponseType(typeof(ApiResponse<List<ReporteInventarioDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> InventarioTotal()
+    // ── REPORTES FACTURACIÓN ELECTRÓNICA ─────────────────────────────────────
+
+    /// <summary>Facturas emitidas agrupadas por mes (solo AUTORIZADA/ENVIADA)</summary>
+    [HttpGet("facturas-por-mes")]
+    public async Task<IActionResult> FacturasPorMes([FromQuery] int? anio = null)
     {
-        var result = await _mediator.Send(new GetInventarioTotalQuery());
-        return Ok(ApiResponse<List<ReporteInventarioDto>>.Ok(result));
+        var result = await _mediator.Send(new GetFacturasPorMesQuery(anio));
+        return Ok(ApiResponse<List<FacturasPorMesDto>>.Ok(result));
     }
 
-    /// <summary>Obtiene el total de préstamos y devoluciones agrupados por mes</summary>
-    /// <returns>Lista con mes, total de préstamos y total de devoluciones</returns>
-    [HttpGet("PrestamosPorMes")]
-    [ProducesResponseType(typeof(ApiResponse<List<ReportePrestamosDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> PrestamosPorMes()
+    /// <summary>IVA desglosado por mes (base 0%, base 15%, total IVA)</summary>
+    [HttpGet("iva-por-mes")]
+    public async Task<IActionResult> IvaPorMes([FromQuery] int? anio = null)
     {
-        var result = await _mediator.Send(new GetPrestamosPorMesQuery());
-        return Ok(ApiResponse<List<ReportePrestamosDto>>.Ok(result));
+        var result = await _mediator.Send(new GetIvaPorMesQuery(anio));
+        return Ok(ApiResponse<List<IvaPorMesDto>>.Ok(result));
     }
 
-    /// <summary>Obtiene los equipos prestados actualmente agrupados por tipo de dispositivo y mes</summary>
-    /// <returns>Lista con nombre del dispositivo, total prestados, mes y año</returns>
-    [HttpGet("EquiposPrestadosPorTipo")]
-    [ProducesResponseType(typeof(ApiResponse<List<ReportePrestadosDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> EquiposPrestadosPorTipo()
+    /// <summary>Conteo de facturas por estado SRI</summary>
+    [HttpGet("facturas-por-estado")]
+    public async Task<IActionResult> FacturasPorEstado()
     {
-        var result = await _mediator.Send(new GetEquiposPrestadosPorTipoQuery());
-        return Ok(ApiResponse<List<ReportePrestadosDto>>.Ok(result));
+        var result = await _mediator.Send(new GetFacturasPorEstadoQuery());
+        return Ok(ApiResponse<List<FacturasPorEstadoDto>>.Ok(result));
+    }
+
+    /// <summary>Top clientes por monto facturado (solo AUTORIZADAS)</summary>
+    [HttpGet("top-clientes")]
+    public async Task<IActionResult> TopClientes([FromQuery] int top = 10, [FromQuery] int? anio = null)
+    {
+        var result = await _mediator.Send(new GetTopClientesQuery(top, anio));
+        return Ok(ApiResponse<List<TopClienteDto>>.Ok(result));
+    }
+
+    /// <summary>Descarga ATS Excel para declaración SRI mensual</summary>
+    [HttpGet("ats/{anio:int}/{mes:int}")]
+    public async Task<IActionResult> DescargarAts(int anio, int mes)
+    {
+        if (mes < 1 || mes > 12) return BadRequest(ApiResponse<string>.Fail("Mes debe estar entre 1 y 12."));
+        var excel = await _mediator.Send(new GetAtsSRIQuery(anio, mes));
+        return File(excel, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"ATS_{anio}_{mes:D2}.xlsx");
     }
 }

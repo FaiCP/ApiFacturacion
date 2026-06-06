@@ -1,10 +1,40 @@
+using System.Threading.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using API.Middleware;
 using Application;
 using Infrastructure;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
 
+// Npgsql: allow DateTime without explicit UTC (legacy behavior)
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Render sets PORT env var — bind to it
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(renderPort))
+    builder.WebHost.UseUrls($"http://+:{renderPort}");
+
+// Validar configuracion critica de seguridad (solo en produccion y staging, no en Testing)
+var jwtKey = builder.Configuration["Jwt:Key"];
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+        throw new InvalidOperationException("JWT:Key debe estar configurada con al menos 32 caracteres. Use variables de entorno o User Secrets.");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+        throw new InvalidOperationException("ConnectionStrings:DefaultConnection debe estar configurada. Use variables de entorno o User Secrets.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+    jwtKey = "fallback-dev-key-for-testing-only-min-32ch!!";
+
+if (string.IsNullOrWhiteSpace(connectionString))
+    connectionString = "InMemory";
 
 // Configurar Serilog
 Log.Logger = new LoggerConfiguration()
@@ -19,10 +49,19 @@ builder.Host.UseSerilog();
 builder.Services.AddControllers();
 
 // Registrar servicios de Application (MediatR, AutoMapper, FluentValidation)
-builder.Services.AddApplicationServices();
+builder.Services.AddApplicationServices(builder.Configuration);
 
 // Registrar servicios de Infrastructure (DbContext y Repositorios)
-builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddInfrastructureServices(builder.Configuration, builder.Environment);
+
+// HttpClient para comunicación SOAP con SRI
+builder.Services.AddHttpClient("SRI", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
 
 // Configurar Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -30,12 +69,35 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "GestorAdmi API",
+        Title = "Facturación Electrónica Ecuador API",
         Version = "v1",
-        Description = "API de gestión de inventario y activos - Migración a .NET Core",
+        Description = """
+            API de facturación electrónica para Ecuador (SRI).
+
+            ## Autenticación
+            1. `POST /api/v1/login` con `{ "email": "...", "password": "..." }`
+            2. Copia el `data.token` de la respuesta
+            3. En Swagger: botón **Authorize** → ingresa el token (sin "Bearer ")
+
+            ## Formato de respuesta
+            Todas las respuestas usan el mismo envoltorio:
+            ```json
+            { "success": true, "data": ..., "message": null, "errors": [] }
+            ```
+            Los errores devuelven `"success": false` con el mismo esquema JSON.
+
+            ## Paginación
+            Los listados aceptan `?cantidad=10&pagina=1` y devuelven:
+            ```json
+            { "totalCount": 0, "pageNumber": 1, "pageSize": 10, "totalPages": 0, "items": [] }
+            ```
+
+            ## Comprobantes
+            Flujo: **Crear** (BORRADOR) → **Emitir** (XML + firma + SRI) → AUTORIZADA/RECHAZADA
+            """,
         Contact = new OpenApiContact
         {
-            Name = "GestorAdmi Team"
+            Name = "Equipo Facturación"
         }
     });
 
@@ -75,17 +137,17 @@ builder.Services.AddSwaggerGen(options =>
 // Configurar CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("Development", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:8080", "https://localhost:3000", "https://localhost:4200")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 
-    // Política restringida para producción (configurar según necesidad)
     options.AddPolicy("Production", policy =>
     {
-        policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:3000" })
+        policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? new[] { "https://localhost:5001" })
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -109,12 +171,35 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "GestorAdmi",
         ValidAudience = builder.Configuration["Jwt:Audience"] ?? "GestorAdmiClient",
         IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-            System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "your-secret-key-min-32-chars-long!!")),
+            System.Text.Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.Zero
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("RequireAdminRole", policy =>
+        policy.RequireRole("Administrador", "Admin"));
+    options.AddPolicy("RequireUserRole", policy =>
+        policy.RequireAuthenticatedUser());
+});
+
+// Configurar rate limiting (solo en produccion y staging)
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        options.AddFixedWindowLimiter("LoginPolicy", opt =>
+        {
+            opt.PermitLimit = 5;
+            opt.Window = TimeSpan.FromMinutes(1);
+            opt.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+            opt.QueueLimit = 0;
+        });
+    });
+}
 
 var app = builder.Build();
 
@@ -125,24 +210,40 @@ app.UseGlobalExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "GestorAdmi API v1");
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Facturación Electrónica Ecuador API v1");
     options.RoutePrefix = "swagger";
 });
 
 app.UseSerilogRequestLogging();
 
 // Usar CORS (debe ir antes de UseHttpsRedirection para que los preflights no sean redirigidos)
-app.UseCors(app.Environment.IsDevelopment() ? "AllowAll" : "Production");
+app.UseCors(app.Environment.IsDevelopment() ? "Development" : "Production");
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+if (!app.Environment.IsEnvironment("Testing"))
+    app.UseRateLimiter();
 
 app.MapControllers();
 
 // Log de inicio
-Log.Information("GestorAdmi API iniciada en {Environment}", app.Environment.EnvironmentName);
+Log.Information("Facturación Electrónica Ecuador API iniciada en {Environment}", app.Environment.EnvironmentName);
+
+// Auto-migrate + seed en producción
+if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<Infrastructure.Persistence.ApplicationDbContext>();
+    await db.Database.MigrateAsync();
+    Log.Information("Migraciones aplicadas");
+}
+
+// Seed de datos de prueba (solo si las tablas están vacías)
+if (app.Environment.IsDevelopment())
+    await Infrastructure.Persistence.DataSeeder.SeedAsync(app.Services);
 
 app.Run();
 

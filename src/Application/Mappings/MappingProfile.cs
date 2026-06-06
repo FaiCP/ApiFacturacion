@@ -1,14 +1,15 @@
 using Application.DTOs.Auth;
-using Application.DTOs.Custodios;
-using Application.DTOs.Departamentos;
-using Application.DTOs.GestionActivos;
-using Application.DTOs.Hardware;
-using Application.DTOs.HistorialPrestamos;
-using Application.DTOs.Kits;
-using Application.DTOs.Personal;
-using Application.DTOs.Suministros;
+using Application.DTOs.Clientes;
+using Application.DTOs.ConfiguracionSRI;
+using Application.DTOs.Emisor;
+using Application.DTOs.Facturas;
+using Application.DTOs.NotasCredito;
+using Application.DTOs.NotasDebito;
+using Application.DTOs.Productos;
+using Application.DTOs.Retenciones;
 using AutoMapper;
 using Domain.Entities;
+using Domain.Enums;
 
 namespace Application.Mappings;
 
@@ -16,70 +17,62 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
-        // Departamento
-        CreateMap<Departamento, DepartamentoDto>().ReverseMap();
+        // ── FACTURACIÓN ELECTRÓNICA ──────────────────────────────────────
 
-        // Persona / Personal
-        CreateMap<Persona, PersonalDto>().ReverseMap();
+        CreateMap<Domain.Entities.Emisor, EmisorDto>()
+            .ForMember(dest => dest.Ambiente, opt => opt.MapFrom(src => src.Ambiente.ToString()));
 
-        // Custodio
-        CreateMap<Custodio, CustodioDto>()
-            .ForMember(dest => dest.NombreEmpleado, opt => opt.MapFrom(src => src.Nombre))
-            .ForMember(dest => dest.CedulaEmpleado, opt => opt.MapFrom(src => src.Cedula))
-            .ForMember(dest => dest.CargoEmpleado, opt => opt.MapFrom(src => src.Cargo))
-            .ForMember(dest => dest.IdDepartamento, opt => opt.MapFrom(src => src.IdDepartamento ?? 0))
-            .ForMember(dest => dest.Departamento, opt => opt.MapFrom(src => src.Departamento != null ? src.Departamento.Nombre : string.Empty));
+        CreateMap<Domain.Entities.Cliente, ClienteDto>()
+            .ForMember(dest => dest.TipoIdentificacion, opt => opt.MapFrom(src => src.TipoIdentificacion.ToString()));
 
-        CreateMap<CustodioDto, Custodio>()
-            .ForMember(dest => dest.Nombre, opt => opt.MapFrom(src => src.NombreEmpleado))
-            .ForMember(dest => dest.Cedula, opt => opt.MapFrom(src => src.CedulaEmpleado))
-            .ForMember(dest => dest.Cargo, opt => opt.MapFrom(src => src.CargoEmpleado));
+        CreateMap<Domain.Entities.Producto, ProductoDto>()
+            .ForMember(dest => dest.TarifaIva, opt => opt.MapFrom(src => src.TarifaIva.ToString()))
+            .ForMember(dest => dest.PorcentajeIva, opt => opt.MapFrom(src =>
+                src.TarifaIva == TarifaIva.Quince ? 15m :
+                src.TarifaIva == TarifaIva.Cero ? 0m : 0m));
 
-        // Hardware
-        CreateMap<Hardware, HardwareDto>()
-            .ForMember(dest => dest.Descripcion, opt => opt.MapFrom(src => src.Observacion))
-            .ForMember(dest => dest.FechaAdquisicion, opt => opt.MapFrom(src =>
-                src.FechaAdquisicion.HasValue
-                    ? DateOnly.FromDateTime(src.FechaAdquisicion.Value)
-                    : (DateOnly?)null))
-            .ForMember(dest => dest.Valor, opt => opt.MapFrom(src => src.Valor.HasValue ? (double?)Convert.ToDouble(src.Valor.Value) : null))
-            .ForMember(dest => dest.NombreCustodio, opt => opt.MapFrom(src =>
-                src.GestionActivos.FirstOrDefault(g => g.FechaDevolucion == null) != null
-                    ? src.GestionActivos.FirstOrDefault(g => g.FechaDevolucion == null)!.Custodio!.Nombre
-                    : string.Empty))
-            .ForMember(dest => dest.Departamento, opt => opt.Ignore())
-            .ForMember(dest => dest.Ram, opt => opt.Ignore())
-            .ForMember(dest => dest.Rom, opt => opt.Ignore())
-            .ForMember(dest => dest.Procesador, opt => opt.Ignore());
+        // Factura
+        CreateMap<Domain.Entities.Factura, FacturaDto>()
+            .ForMember(dest => dest.Estado, opt => opt.MapFrom(src => src.Estado.ToString()))
+            .ForMember(dest => dest.Cliente, opt => opt.MapFrom(src => src.Cliente))
+            .ForMember(dest => dest.Detalles, opt => opt.MapFrom(src => src.Detalles));
 
-        // CaracteristicaComputadora
-        CreateMap<CaracteristicaComputadora, CaracteristicaComputadoraDto>().ReverseMap();
+        CreateMap<Domain.Entities.Factura, FacturaResumenDto>()
+            .ForMember(dest => dest.Estado, opt => opt.MapFrom(src => src.Estado.ToString()))
+            .ForMember(dest => dest.NumeroCompleto, opt => opt.MapFrom(src => $"{src.Serie}-{src.Secuencial}"))
+            .ForMember(dest => dest.RazonSocialCliente, opt => opt.MapFrom(src => src.Cliente != null ? src.Cliente.RazonSocial : ""))
+            .ForMember(dest => dest.IdentificacionCliente, opt => opt.MapFrom(src => src.Cliente != null ? src.Cliente.NumeroIdentificacion : ""));
 
-        // Kit
-        CreateMap<Kit, KitDto>().ReverseMap();
+        CreateMap<Domain.Entities.DetalleFactura, DetalleFacturaDto>()
+            .ForMember(dest => dest.TarifaIva, opt => opt.MapFrom(src => src.TarifaIva.ToString()));
 
-        // Suministro
-        CreateMap<Suministro, SuministroDto>().ReverseMap();
+        // Nota de Crédito
+        CreateMap<Domain.Entities.NotaCredito, NotaCreditoDto>()
+            .ForMember(dest => dest.Estado, opt => opt.MapFrom(src => src.Estado.ToString()))
+            .ForMember(dest => dest.Cliente, opt => opt.MapFrom(src => src.Cliente))
+            .ForMember(dest => dest.Detalles, opt => opt.MapFrom(src => src.Detalles));
+        CreateMap<Domain.Entities.DetalleNotaCredito, DetalleFacturaDto>()
+            .ForMember(dest => dest.TarifaIva, opt => opt.MapFrom(src => src.TarifaIva.ToString()));
 
-        // GestionActivo
-        CreateMap<GestionActivo, GestionActivoDto>()
-            .ForMember(dest => dest.NombreEmpleado, opt => opt.MapFrom(src => src.Custodio != null ? src.Custodio.Nombre : string.Empty))
-            .ForMember(dest => dest.IdDepartamento, opt => opt.MapFrom(src => src.Custodio != null ? src.Custodio.IdDepartamento : null))
-            .ForMember(dest => dest.Marca, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.Marca : string.Empty))
-            .ForMember(dest => dest.Modelo, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.Modelo : string.Empty))
-            .ForMember(dest => dest.FechaAdquisicion, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.FechaAdquisicion : null))
-            .ForMember(dest => dest.Estado, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.Estado : string.Empty))
-            .ForMember(dest => dest.Ubicacion, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.Ubicacion : string.Empty))
-            .ForMember(dest => dest.CodigoCne, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.CodigoCne : string.Empty))
-            .ForMember(dest => dest.NombreDispositivo, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.NombreDispositivo : string.Empty));
+        // Nota de Débito
+        CreateMap<Domain.Entities.NotaDebito, NotaDebitoDto>()
+            .ForMember(dest => dest.Estado, opt => opt.MapFrom(src => src.Estado.ToString()))
+            .ForMember(dest => dest.Cliente, opt => opt.MapFrom(src => src.Cliente))
+            .ForMember(dest => dest.Motivos, opt => opt.MapFrom(src => src.Motivos));
+        CreateMap<Domain.Entities.MotivoNotaDebito, MotivoDto>();
 
-        // HistorialPrestamo (maps from GestionActivo)
-        CreateMap<GestionActivo, HistorialPrestamoDto>()
-            .ForMember(dest => dest.NombreEmpleado, opt => opt.MapFrom(src => src.Custodio != null ? src.Custodio.Nombre : string.Empty))
-            .ForMember(dest => dest.Marca, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.Marca : string.Empty))
-            .ForMember(dest => dest.Modelo, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.Modelo : string.Empty))
-            .ForMember(dest => dest.Estado, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.Estado : string.Empty))
-            .ForMember(dest => dest.CodigoCne, opt => opt.MapFrom(src => src.Hardware != null ? src.Hardware.CodigoCne : string.Empty));
+        // Retención
+        CreateMap<Domain.Entities.Retencion, RetencionDto>()
+            .ForMember(dest => dest.Estado, opt => opt.MapFrom(src => src.Estado.ToString()))
+            .ForMember(dest => dest.SujetoRetenido, opt => opt.MapFrom(src => src.SujetoRetenido))
+            .ForMember(dest => dest.Detalles, opt => opt.MapFrom(src => src.Detalles));
+        CreateMap<Domain.Entities.DetalleRetencion, DetalleRetencionDto>()
+            .ForMember(dest => dest.TipoImpuesto, opt => opt.MapFrom(src => src.TipoImpuesto.ToString()));
+
+        // ConfiguracionSRI
+        CreateMap<Domain.Entities.ConfiguracionSRI, ConfiguracionSRIDto>()
+            .ForMember(dest => dest.Ambiente, opt => opt.MapFrom(src => src.Ambiente.ToString()))
+            .ForMember(dest => dest.TieneCertificado, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.CertificadoBase64)));
 
         // Usuario -> LoginResponseDto (manual in handler but keep mapping for completeness)
         CreateMap<Usuario, LoginResponseDto>()

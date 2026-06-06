@@ -1,3 +1,4 @@
+using Application.Interfaces;
 using Domain.Entities;
 using Domain.Interfaces;
 using Infrastructure.Persistence;
@@ -10,8 +11,11 @@ namespace Infrastructure.Repositories;
 /// </summary>
 public class UsuarioRepository : GenericRepository<Usuario>, IUsuarioRepository
 {
-    public UsuarioRepository(ApplicationDbContext context) : base(context)
+    private readonly IPasswordHasher _passwordHasher;
+
+    public UsuarioRepository(ApplicationDbContext context, IPasswordHasher passwordHasher) : base(context)
     {
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<Usuario?> GetByEmailAsync(string email)
@@ -36,6 +40,6 @@ public class UsuarioRepository : GenericRepository<Usuario>, IUsuarioRepository
         if (usuario == null)
             return false;
 
-        return BCrypt.Net.BCrypt.Verify(password, usuario.Password);
+        return _passwordHasher.VerifyPassword(password, usuario.Password);
     }
 }

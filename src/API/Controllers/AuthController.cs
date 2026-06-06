@@ -4,12 +4,13 @@ using Application.DTOs.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
 /// <summary>Autenticación de usuarios</summary>
 [ApiController]
-[Route("")]
+[Route("api/v1")]
 public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -24,6 +25,7 @@ public class AuthController : ControllerBase
     /// <returns>Token JWT y datos del usuario autenticado</returns>
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("LoginPolicy")]
     [ProducesResponseType(typeof(ApiResponse<LoginResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]

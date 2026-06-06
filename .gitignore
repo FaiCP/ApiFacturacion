@@ -11,6 +11,7 @@ src/API/logs/
 
 ## appsettings locales (no subir credenciales)
 appsettings.Development.json
+appsettings.Production.json
 
 ## Publicacion
 publish/

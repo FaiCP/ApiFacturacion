@@ -31,6 +31,7 @@ public class ApiResponse<T>
         return new ApiResponse<T>
         {
             Success = false,
+            Message = error,
             Errors = new List<string> { error }
         };
     }
@@ -40,7 +41,18 @@ public class ApiResponse<T>
         return new ApiResponse<T>
         {
             Success = false,
+            Message = errors.Count > 0 ? errors[0] : "La solicitud no pudo procesarse.",
             Errors = errors
+        };
+    }
+
+    public static ApiResponse<T> Fail(string message, IEnumerable<string> errors)
+    {
+        return new ApiResponse<T>
+        {
+            Success = false,
+            Message = message,
+            Errors = errors.ToList()
         };
     }
 }

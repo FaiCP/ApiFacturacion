@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "aspnet-core": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "aspnet-core/SKILL.md",
+      "computedHash": "9df856b6d3019796c2c18fdde32c130fb67a844f4bf6cfc7e25415d1c3b8c15e"
+    },
+    "clean-architecture": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "clean-architecture/SKILL.md",
+      "computedHash": "39cf5addffbea70a7f8d09c323eb3cc5637c0b746656f9111d657eb7a9efa559"
+    },
+    "verification-before-completion": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/verification-before-completion/SKILL.md",
+      "computedHash": "9b446f0c7fe1cfb560b1d34439523b1a76d5f177290007b2c053a1c749a4a8ba"
+    }
+  }
+}

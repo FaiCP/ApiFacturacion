@@ -1,4 +1,5 @@
 using Application.DTOs.Auth;
+using Application.Interfaces;
 using Domain.Interfaces;
 using MediatR;
 
@@ -10,18 +11,20 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponseDt
 {
     private readonly IUsuarioRepository _usuarioRepository;
     private readonly IJwtService _jwtService;
+    private readonly IPasswordHasher _passwordHasher;
 
-    public LoginCommandHandler(IUsuarioRepository usuarioRepository, IJwtService jwtService)
+    public LoginCommandHandler(IUsuarioRepository usuarioRepository, IJwtService jwtService, IPasswordHasher passwordHasher)
     {
         _usuarioRepository = usuarioRepository;
         _jwtService = jwtService;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<LoginResponseDto> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         var usuario = await _usuarioRepository.GetByEmailAsync(request.Email);
 
-        if (usuario == null || !BCrypt.Net.BCrypt.Verify(request.Password, usuario.Password))
+        if (usuario == null || !_passwordHasher.VerifyPassword(request.Password, usuario.Password))
         {
             throw new UnauthorizedAccessException("Credenciales inválidas.");
         }

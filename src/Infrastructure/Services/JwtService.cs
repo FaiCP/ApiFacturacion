@@ -1,8 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Application.Interfaces;
 using Domain.Entities;
-using Domain.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -30,7 +30,7 @@ public class JwtService : IJwtService
             new Claim(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, usuario.Nombre),
             new Claim(ClaimTypes.Email, usuario.Email ?? string.Empty),
-            new Claim(ClaimTypes.Role, usuario.Cargo ?? string.Empty),
+            new Claim(ClaimTypes.Role, usuario.Rol ?? "User"),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
