@@ -49,7 +49,7 @@ public class FacturasController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<long>), StatusCodes.Status201Created)]
     public async Task<IActionResult> Crear([FromBody] FacturaCreateDto dto)
     {
-        var id = await _mediator.Send(new CreateFacturaCommand(dto.ClienteId, dto.FechaEmision, dto.Detalles));
+        var id = await _mediator.Send(new CreateFacturaCommand(dto.EmisorId, dto.ClienteId, dto.FechaEmision, dto.Detalles));
         return StatusCode(StatusCodes.Status201Created, ApiResponse<long>.Ok(id, "Factura creada en estado BORRADOR."));
     }
 

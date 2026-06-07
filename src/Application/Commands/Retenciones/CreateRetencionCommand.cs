@@ -29,8 +29,8 @@ public class CreateRetencionCommandHandler : IRequestHandler<CreateRetencionComm
         var factura = await _facturaRepo.GetWithDetallesAsync(request.FacturaId)
             ?? throw new NotFoundException($"Factura {request.FacturaId} no encontrada.");
 
-        var emisor = await _emisorRepo.GetActivoAsync()
-            ?? throw new NotFoundException("Emisor no configurado.");
+        var emisor = await _emisorRepo.GetByIdAsync(factura.EmisorId)
+            ?? throw new NotFoundException("Emisor no encontrado.");
 
         var serie = $"{emisor.SerieEstablecimiento}-{emisor.SeriePuntoEmision}";
         var ultimoSeq = await _retRepo.GetUltimoSecuencialAsync(emisor.Id, serie);

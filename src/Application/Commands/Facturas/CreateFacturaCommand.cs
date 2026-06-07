@@ -9,7 +9,7 @@ using MediatR;
 
 namespace Application.Commands.Facturas;
 
-public record CreateFacturaCommand(long ClienteId, DateTime FechaEmision, List<DetalleFacturaCreateDto> Detalles) : IRequest<long>;
+public record CreateFacturaCommand(long EmisorId, long ClienteId, DateTime FechaEmision, List<DetalleFacturaCreateDto> Detalles) : IRequest<long>;
 
 public class CreateFacturaCommandHandler : IRequestHandler<CreateFacturaCommand, long>
 {
@@ -32,8 +32,8 @@ public class CreateFacturaCommandHandler : IRequestHandler<CreateFacturaCommand,
 
     public async Task<long> Handle(CreateFacturaCommand request, CancellationToken cancellationToken)
     {
-        var emisor = await _emisorRepository.GetActivoAsync()
-            ?? throw new NotFoundException("No existe emisor configurado. Configure el emisor antes de facturar.");
+        var emisor = await _emisorRepository.GetByIdAsync(request.EmisorId)
+            ?? throw new NotFoundException($"Emisor {request.EmisorId} no encontrado.");
 
         _ = await _clienteRepository.GetByIdAsync(request.ClienteId)
             ?? throw new NotFoundException($"Cliente con Id {request.ClienteId} no encontrado.");
