@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<IXmlNotaDebitoService, XmlNotaDebitoService>();
         services.AddScoped<IXmlRetencionService, XmlRetencionService>();
         services.AddScoped<IFirmaDigitalService, FirmaDigitalService>();
+        services.AddScoped<IComprobanteValidator, ComprobanteValidator>();
         services.AddScoped<ISRIService, SRIService>();
         services.AddScoped<Application.Services.FacturaNumeracionService>();
 

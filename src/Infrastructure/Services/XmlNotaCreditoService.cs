@@ -78,6 +78,8 @@ public class XmlNotaCreditoService : IXmlNotaCreditoService
             totalConImpuestos.Add(new XElement("totalImpuesto",
                 new XElement("codigo", "2"),
                 new XElement("codigoPorcentaje", GetCodigoTarifa(g.Key)),
+                new XElement("tarifa", GetPorcentaje(g.Key)),
+                new XElement("descuentoAdicional", "0.00"),
                 new XElement("baseImponible", g.Sum(d => d.SubtotalSinImpuesto).ToString("F2")),
                 new XElement("valor", g.Sum(d => d.ValorIva).ToString("F2"))
             ));

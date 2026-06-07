@@ -19,6 +19,7 @@ public class EmitirFacturaCommandHandler : IRequestHandler<EmitirFacturaCommand,
     private readonly IEmisorRepository _emisorRepository;
     private readonly IConfiguracionSRIRepository _configRepo;
     private readonly IXmlFacturaService _xmlService;
+    private readonly IComprobanteValidator _validator;
     private readonly IFirmaDigitalService _firmaService;
     private readonly ISRIService _sriService;
 
@@ -27,6 +28,7 @@ public class EmitirFacturaCommandHandler : IRequestHandler<EmitirFacturaCommand,
         IEmisorRepository emisorRepository,
         IConfiguracionSRIRepository configRepo,
         IXmlFacturaService xmlService,
+        IComprobanteValidator validator,
         IFirmaDigitalService firmaService,
         ISRIService sriService)
     {
@@ -34,6 +36,7 @@ public class EmitirFacturaCommandHandler : IRequestHandler<EmitirFacturaCommand,
         _emisorRepository  = emisorRepository;
         _configRepo        = configRepo;
         _xmlService        = xmlService;
+        _validator         = validator;
         _firmaService      = firmaService;
         _sriService        = sriService;
     }
@@ -56,8 +59,25 @@ public class EmitirFacturaCommandHandler : IRequestHandler<EmitirFacturaCommand,
             ?? throw new NotFoundException("Emisor no encontrado.");
         factura.Emisor = emisor;
 
+        if (config.FechaVencimientoCert.HasValue && config.FechaVencimientoCert.Value < DateTime.UtcNow)
+            throw new DomainException($"Certificado digital venció el {config.FechaVencimientoCert.Value:dd/MM/yyyy}. Actualice el certificado en Configuración SRI.");
+
+        if (emisor.Ambiente != config.Ambiente)
+            throw new DomainException($"Conflicto de ambiente: emisor en {emisor.Ambiente} pero configuración SRI en {config.Ambiente}. Verifique la configuración.");
+
         // 1. Generar XML
         var xml = _xmlService.GenerarXml(factura);
+
+        // 1b. Validar estructura y reglas SRI antes de firmar
+        var validacion = _validator.Validar(xml);
+        if (!validacion.EsValido)
+        {
+            factura.Estado = EstadoSRI.RECHAZADA;
+            factura.MotivoRechazo = validacion.MensajeConsolidado();
+            factura.UpdatedAt = DateTime.UtcNow;
+            await _facturaRepository.UpdateAsync(factura);
+            return new EmitirFacturaResult(EstadoSRI.RECHAZADA, null, factura.MotivoRechazo, "Comprobante inválido: no se envió al SRI.");
+        }
 
         // 2. Firmar
         var xmlFirmado = await _firmaService.FirmarXmlAsync(

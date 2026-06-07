@@ -94,8 +94,9 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.ImporteTotal).HasColumnType("decimal(18,2)");
             e.HasOne(x => x.Emisor).WithMany(em => em.Facturas).HasForeignKey(x => x.EmisorId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Cliente).WithMany(c => c.Facturas).HasForeignKey(x => x.ClienteId).OnDelete(DeleteBehavior.Restrict);
-            e.HasIndex(x => x.ClaveAcceso).HasDatabaseName("IX_Factura_ClaveAcceso");
+            e.HasIndex(x => x.ClaveAcceso).IsUnique().HasDatabaseName("IX_Factura_ClaveAcceso");
             e.HasIndex(x => x.Estado).HasDatabaseName("IX_Factura_Estado");
+            e.HasIndex(x => new { x.EmisorId, x.Serie, x.Secuencial }).IsUnique().HasDatabaseName("IX_Factura_Secuencial_Unico");
         });
 
         modelBuilder.Entity<DetalleFactura>(e =>
@@ -142,6 +143,8 @@ public class ApplicationDbContext : DbContext
             e.HasOne(x => x.Factura).WithMany().HasForeignKey(x => x.FacturaId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Emisor).WithMany().HasForeignKey(x => x.EmisorId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Cliente).WithMany().HasForeignKey(x => x.ClienteId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.ClaveAcceso).IsUnique().HasDatabaseName("IX_NotaCredito_ClaveAcceso");
+            e.HasIndex(x => new { x.EmisorId, x.Serie, x.Secuencial }).IsUnique().HasDatabaseName("IX_NotaCredito_Secuencial_Unico");
         });
 
         modelBuilder.Entity<DetalleNotaCredito>(e =>
@@ -176,6 +179,8 @@ public class ApplicationDbContext : DbContext
             e.HasOne(x => x.Factura).WithMany().HasForeignKey(x => x.FacturaId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Emisor).WithMany().HasForeignKey(x => x.EmisorId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Cliente).WithMany().HasForeignKey(x => x.ClienteId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.ClaveAcceso).IsUnique().HasDatabaseName("IX_NotaDebito_ClaveAcceso");
+            e.HasIndex(x => new { x.EmisorId, x.Serie, x.Secuencial }).IsUnique().HasDatabaseName("IX_NotaDebito_Secuencial_Unico");
         });
 
         modelBuilder.Entity<MotivoNotaDebito>(e =>
@@ -200,6 +205,8 @@ public class ApplicationDbContext : DbContext
             e.HasOne(x => x.Factura).WithMany().HasForeignKey(x => x.FacturaId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Emisor).WithMany().HasForeignKey(x => x.EmisorId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.SujetoRetenido).WithMany().HasForeignKey(x => x.SujetoRetenidoId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.ClaveAcceso).IsUnique().HasDatabaseName("IX_Retencion_ClaveAcceso");
+            e.HasIndex(x => new { x.EmisorId, x.Serie, x.Secuencial }).IsUnique().HasDatabaseName("IX_Retencion_Secuencial_Unico");
         });
 
         modelBuilder.Entity<DetalleRetencion>(e =>

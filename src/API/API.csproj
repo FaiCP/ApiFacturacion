@@ -24,4 +24,10 @@
     <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- Esquemas XSD oficiales del SRI (opcionales). Si existen, se copian al output
+       y ComprobanteValidator valida contra ellos antes de firmar. -->
+  <ItemGroup>
+    <None Include="schemas\**\*.xsd" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

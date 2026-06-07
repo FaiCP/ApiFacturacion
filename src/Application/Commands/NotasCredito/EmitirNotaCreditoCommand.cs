@@ -14,16 +14,18 @@ public class EmitirNotaCreditoCommandHandler : IRequestHandler<EmitirNotaCredito
     private readonly IEmisorRepository _emisorRepo;
     private readonly IConfiguracionSRIRepository _configRepo;
     private readonly IXmlNotaCreditoService _xmlService;
+    private readonly IComprobanteValidator _validator;
     private readonly IFirmaDigitalService _firmaService;
     private readonly ISRIService _sriService;
 
     public EmitirNotaCreditoCommandHandler(
         INotaCreditoRepository ncRepo, IEmisorRepository emisorRepo,
         IConfiguracionSRIRepository configRepo, IXmlNotaCreditoService xmlService,
+        IComprobanteValidator validator,
         IFirmaDigitalService firmaService, ISRIService sriService)
     {
         _ncRepo = ncRepo; _emisorRepo = emisorRepo; _configRepo = configRepo;
-        _xmlService = xmlService; _firmaService = firmaService; _sriService = sriService;
+        _xmlService = xmlService; _validator = validator; _firmaService = firmaService; _sriService = sriService;
     }
 
     public async Task<EmitirNotaCreditoResult> Handle(EmitirNotaCreditoCommand request, CancellationToken cancellationToken)
@@ -39,7 +41,24 @@ public class EmitirNotaCreditoCommandHandler : IRequestHandler<EmitirNotaCredito
         var emisor = await _emisorRepo.GetByIdAsync(nc.EmisorId) ?? throw new NotFoundException("Emisor no encontrado.");
         nc.Emisor = emisor;
 
+        if (config.FechaVencimientoCert.HasValue && config.FechaVencimientoCert.Value < DateTime.UtcNow)
+            throw new DomainException($"Certificado digital venció el {config.FechaVencimientoCert.Value:dd/MM/yyyy}. Actualice el certificado en Configuración SRI.");
+
+        if (emisor.Ambiente != config.Ambiente)
+            throw new DomainException($"Conflicto de ambiente: emisor en {emisor.Ambiente} pero configuración SRI en {config.Ambiente}. Verifique la configuración.");
+
         var xml = _xmlService.GenerarXml(nc);
+
+        var validacion = _validator.Validar(xml);
+        if (!validacion.EsValido)
+        {
+            nc.Estado = EstadoSRI.RECHAZADA;
+            nc.MotivoRechazo = validacion.MensajeConsolidado();
+            nc.UpdatedAt = DateTime.UtcNow;
+            await _ncRepo.UpdateAsync(nc);
+            return new EmitirNotaCreditoResult(EstadoSRI.RECHAZADA, null, nc.MotivoRechazo, "Comprobante inválido: no se envió al SRI.");
+        }
+
         var xmlFirmado = await _firmaService.FirmarXmlAsync(xml, config.CertificadoBase64!, config.PasswordCertificado!);
 
         var recepcion = await _sriService.EnviarComprobanteAsync(xmlFirmado, config.Ambiente);

@@ -14,16 +14,18 @@ public class EmitirRetencionCommandHandler : IRequestHandler<EmitirRetencionComm
     private readonly IEmisorRepository _emisorRepo;
     private readonly IConfiguracionSRIRepository _configRepo;
     private readonly IXmlRetencionService _xmlService;
+    private readonly IComprobanteValidator _validator;
     private readonly IFirmaDigitalService _firmaService;
     private readonly ISRIService _sriService;
 
     public EmitirRetencionCommandHandler(
         IRetencionRepository retRepo, IEmisorRepository emisorRepo,
         IConfiguracionSRIRepository configRepo, IXmlRetencionService xmlService,
+        IComprobanteValidator validator,
         IFirmaDigitalService firmaService, ISRIService sriService)
     {
         _retRepo = retRepo; _emisorRepo = emisorRepo; _configRepo = configRepo;
-        _xmlService = xmlService; _firmaService = firmaService; _sriService = sriService;
+        _xmlService = xmlService; _validator = validator; _firmaService = firmaService; _sriService = sriService;
     }
 
     public async Task<EmitirRetencionResult> Handle(EmitirRetencionCommand request, CancellationToken cancellationToken)
@@ -38,7 +40,24 @@ public class EmitirRetencionCommandHandler : IRequestHandler<EmitirRetencionComm
         var emisor = await _emisorRepo.GetByIdAsync(ret.EmisorId) ?? throw new NotFoundException("Emisor no encontrado.");
         ret.Emisor = emisor;
 
+        if (config.FechaVencimientoCert.HasValue && config.FechaVencimientoCert.Value < DateTime.UtcNow)
+            throw new DomainException($"Certificado digital venció el {config.FechaVencimientoCert.Value:dd/MM/yyyy}. Actualice el certificado en Configuración SRI.");
+
+        if (emisor.Ambiente != config.Ambiente)
+            throw new DomainException($"Conflicto de ambiente: emisor en {emisor.Ambiente} pero configuración SRI en {config.Ambiente}. Verifique la configuración.");
+
         var xml = _xmlService.GenerarXml(ret);
+
+        var validacion = _validator.Validar(xml);
+        if (!validacion.EsValido)
+        {
+            ret.Estado = EstadoSRI.RECHAZADA;
+            ret.MotivoRechazo = validacion.MensajeConsolidado();
+            ret.UpdatedAt = DateTime.UtcNow;
+            await _retRepo.UpdateAsync(ret);
+            return new EmitirRetencionResult(EstadoSRI.RECHAZADA, null, ret.MotivoRechazo, "Comprobante inválido: no se envió al SRI.");
+        }
+
         var xmlFirmado = await _firmaService.FirmarXmlAsync(xml, config.CertificadoBase64!, config.PasswordCertificado!);
 
         var recepcion = await _sriService.EnviarComprobanteAsync(xmlFirmado, config.Ambiente);
