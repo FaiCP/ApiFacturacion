@@ -121,6 +121,8 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.CertificadoBase64).HasColumnType("text");
             e.Property(x => x.PasswordCertificado).HasMaxLength(500);
             e.Property(x => x.Ambiente).HasConversion<int>();
+            e.HasOne(x => x.Emisor).WithMany().HasForeignKey(x => x.EmisorId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.EmisorId).HasDatabaseName("IX_ConfiguracionSRI_EmisorId");
         });
 
         // ── DOCUMENTOS ADICIONALES ───────────────────────────────────────

@@ -52,12 +52,12 @@ public class EmitirFacturaCommandHandler : IRequestHandler<EmitirFacturaCommand,
         if (factura.Estado == EstadoSRI.ANULADA)
             throw new DomainException("No se puede emitir una factura anulada.");
 
-        var config = await _configRepo.GetActivaAsync()
-            ?? throw new NotFoundException("No hay configuración SRI activa. Suba el certificado digital primero.");
-
         var emisor = await _emisorRepository.GetByIdAsync(factura.EmisorId)
             ?? throw new NotFoundException("Emisor no encontrado.");
         factura.Emisor = emisor;
+
+        var config = await _configRepo.GetActivaPorEmisorAsync(emisor.Id)
+            ?? throw new NotFoundException("No hay configuración SRI activa para este emisor. Suba el certificado digital primero.");
 
         if (config.FechaVencimientoCert.HasValue && config.FechaVencimientoCert.Value < DateTime.UtcNow)
             throw new DomainException($"Certificado digital venció el {config.FechaVencimientoCert.Value:dd/MM/yyyy}. Actualice el certificado en Configuración SRI.");

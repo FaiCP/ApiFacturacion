@@ -6,6 +6,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace Application.Commands.ConfiguracionSRI;
 
 public record SaveConfiguracionSRICommand(
+    long EmisorId,
     string CertificadoBase64,
     string PasswordCertificado,
     AmbienteSRI Ambiente) : IRequest<long>;
@@ -13,14 +14,19 @@ public record SaveConfiguracionSRICommand(
 public class SaveConfiguracionSRICommandHandler : IRequestHandler<SaveConfiguracionSRICommand, long>
 {
     private readonly IConfiguracionSRIRepository _configRepo;
+    private readonly IEmisorRepository _emisorRepo;
 
-    public SaveConfiguracionSRICommandHandler(IConfiguracionSRIRepository configRepo)
+    public SaveConfiguracionSRICommandHandler(IConfiguracionSRIRepository configRepo, IEmisorRepository emisorRepo)
     {
         _configRepo = configRepo;
+        _emisorRepo = emisorRepo;
     }
 
     public async Task<long> Handle(SaveConfiguracionSRICommand request, CancellationToken cancellationToken)
     {
+        _ = await _emisorRepo.GetByIdAsync(request.EmisorId)
+            ?? throw new Domain.Exceptions.NotFoundException($"Emisor {request.EmisorId} no encontrado.");
+
         // Validar certificado antes de guardar
         DateTime? vencimiento = null;
         try
@@ -34,8 +40,8 @@ public class SaveConfiguracionSRICommandHandler : IRequestHandler<SaveConfigurac
             throw new Domain.Exceptions.DomainException("El certificado .p12 no es válido o la contraseña es incorrecta.");
         }
 
-        // Desactivar configuración anterior
-        var anterior = await _configRepo.GetActivaAsync();
+        // Desactivar configuración anterior de este emisor (no afecta otros emisores)
+        var anterior = await _configRepo.GetActivaPorEmisorAsync(request.EmisorId);
         if (anterior != null)
         {
             anterior.Activo = false;
@@ -45,6 +51,7 @@ public class SaveConfiguracionSRICommandHandler : IRequestHandler<SaveConfigurac
 
         var config = new Domain.Entities.ConfiguracionSRI
         {
+            EmisorId = request.EmisorId,
             CertificadoBase64 = request.CertificadoBase64,
             PasswordCertificado = request.PasswordCertificado,
             Ambiente = request.Ambiente,

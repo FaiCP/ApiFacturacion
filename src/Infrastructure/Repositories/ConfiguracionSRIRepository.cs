@@ -9,9 +9,9 @@ public class ConfiguracionSRIRepository : GenericRepository<ConfiguracionSRI>, I
 {
     public ConfiguracionSRIRepository(ApplicationDbContext context) : base(context) { }
 
-    public async Task<ConfiguracionSRI?> GetActivaAsync() =>
+    public async Task<ConfiguracionSRI?> GetActivaPorEmisorAsync(long emisorId) =>
         await _dbSet.AsNoTracking()
-            .Where(c => c.Activo && c.Borrado != true)
+            .Where(c => c.EmisorId == emisorId && c.Activo && c.Borrado != true)
             .OrderByDescending(c => c.Id)
             .FirstOrDefaultAsync();
 }

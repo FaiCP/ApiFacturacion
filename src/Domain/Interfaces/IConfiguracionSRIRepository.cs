@@ -4,5 +4,5 @@ namespace Domain.Interfaces;
 
 public interface IConfiguracionSRIRepository : IGenericRepository<ConfiguracionSRI>
 {
-    Task<ConfiguracionSRI?> GetActivaAsync();
+    Task<ConfiguracionSRI?> GetActivaPorEmisorAsync(long emisorId);
 }

@@ -36,10 +36,11 @@ public class EmitirNotaCreditoCommandHandler : IRequestHandler<EmitirNotaCredito
         if (nc.Estado == EstadoSRI.ANULADA) throw new DomainException("No se puede emitir una NC anulada.");
         if (nc.Estado == EstadoSRI.AUTORIZADA) return new EmitirNotaCreditoResult(EstadoSRI.AUTORIZADA, nc.NumeroAutorizacion, null, "NC ya autorizada.");
 
-        var config = await _configRepo.GetActivaAsync()
-            ?? throw new NotFoundException("No hay configuración SRI activa.");
         var emisor = await _emisorRepo.GetByIdAsync(nc.EmisorId) ?? throw new NotFoundException("Emisor no encontrado.");
         nc.Emisor = emisor;
+
+        var config = await _configRepo.GetActivaPorEmisorAsync(emisor.Id)
+            ?? throw new NotFoundException("No hay configuración SRI activa para este emisor.");
 
         if (config.FechaVencimientoCert.HasValue && config.FechaVencimientoCert.Value < DateTime.UtcNow)
             throw new DomainException($"Certificado digital venció el {config.FechaVencimientoCert.Value:dd/MM/yyyy}. Actualice el certificado en Configuración SRI.");
