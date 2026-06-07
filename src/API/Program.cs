@@ -241,7 +241,11 @@ if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"
     Log.Information("Migraciones aplicadas");
 }
 
-// Seed de datos de prueba (solo si las tablas están vacías)
+// Seed bootstrap de usuarios (admin/vendedor) - corre en TODO ambiente, idempotente
+if (!app.Environment.IsEnvironment("Testing"))
+    await Infrastructure.Persistence.DataSeeder.SeedUsuariosAsync(app.Services);
+
+// Seed completo de datos de prueba (emisor/clientes/productos demo) - solo development
 if (app.Environment.IsDevelopment())
     await Infrastructure.Persistence.DataSeeder.SeedAsync(app.Services);
 

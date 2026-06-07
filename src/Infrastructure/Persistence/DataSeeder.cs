@@ -29,6 +29,27 @@ public static class DataSeeder
         }
     }
 
+    /// <summary>
+    /// Bootstrap de usuarios admin/vendedor. Corre en cualquier ambiente (incluido Production):
+    /// idempotente via AnyAsync, sin esto Production queda sin usuarios para login.
+    /// </summary>
+    public static async Task SeedUsuariosAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db     = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var hasher = scope.ServiceProvider.GetRequiredService<Application.Interfaces.IPasswordHasher>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<ApplicationDbContext>>();
+
+        try
+        {
+            await SeedUsuariosAsync(db, hasher, logger);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error durante el seed de usuarios");
+        }
+    }
+
     private static async Task SeedUsuariosAsync(ApplicationDbContext db, Application.Interfaces.IPasswordHasher hasher, ILogger logger)
     {
         if (await db.Usuarios.AnyAsync()) return;
