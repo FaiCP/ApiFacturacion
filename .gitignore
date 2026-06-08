@@ -19,3 +19,7 @@ out/
 
 ## Claude Code
 .claude/
+graphify-out/
+
+## Planes internos (no forman parte del codigo)
+PLAN*.md
