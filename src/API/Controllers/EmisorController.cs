@@ -27,6 +27,15 @@ public class EmisorController : ControllerBase
         return Ok(ApiResponse<EmisorDto>.Ok(result));
     }
 
+    /// <summary>Obtiene un emisor por Id</summary>
+    [HttpGet("{id:long}")]
+    [ProducesResponseType(typeof(ApiResponse<EmisorDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetById(long id)
+    {
+        var result = await _mediator.Send(new GetEmisorByIdQuery(id));
+        return Ok(ApiResponse<EmisorDto>.Ok(result));
+    }
+
     /// <summary>Crea el emisor (solo la primera vez)</summary>
     [HttpPost]
     [Authorize(Policy = "RequireAdminRole")]
