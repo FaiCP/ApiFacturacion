@@ -1,19 +1,30 @@
 <!-- AUTOREADME:START -->
 <p align="center">
-  <h1>📦 GestorAdmi.Core</h1>
+  <h1>📦 tiendaFacturacionB</h1>
 </p>
 
 <p align="center">
-  <a href="https://github.com/FaiCP/ApiGetionCNE/stargazers"><img src="https://img.shields.io/github/stars/FaiCP/ApiGetionCNE?style=flat&color=yellow" alt="Stars" /></a>
-  <a href="https://github.com/FaiCP/ApiGetionCNE/commits"><img src="https://img.shields.io/github/last-commit/FaiCP/ApiGetionCNE?style=flat" alt="Last Commit" /></a>
+  <a href="https://github.com/FaiCP/ApiFacturacion/stargazers"><img src="https://img.shields.io/github/stars/FaiCP/ApiFacturacion?style=flat&color=yellow" alt="Stars" /></a>
+  <a href="https://github.com/FaiCP/ApiFacturacion/commits"><img src="https://img.shields.io/github/last-commit/FaiCP/ApiFacturacion?style=flat" alt="Last Commit" /></a>
 </p>
+
+## Requirements
+
+- Docker
 
 ## Project Structure
 
 ```
+├─ graphify-out/
 ├─ publish/
 ├─ src/
 ├─ tests/
+```
+
+## Docker
+
+```bash
+docker build -t app .
 ```
 
 ## Contributing
